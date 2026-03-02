@@ -6,7 +6,7 @@ const app = express();
 // --- BEÁLLÍTÁSOK ---
 const PORT = process.env.PORT || 10000;
 
-// Sütik (Cookie) betöltése az Environment Variable-ből
+// Sütik betöltése és a YouTube ügynök (agent) létrehozása
 let agent;
 if (process.env.YT_COOKIE) {
     try {
@@ -14,13 +14,13 @@ if (process.env.YT_COOKIE) {
         agent = ytdl.createAgent(cookies);
         console.log(">>> [RENDSZER] Sütik sikeresen betöltve. YouTube hozzáférés OK.");
     } catch (e) {
-        console.error(">>> [HIBA] A YT_COOKIE nem érvényes JSON! Ellenőrizd a Render beállításait.");
+        console.error(">>> [HIBA] A YT_COOKIE formátuma nem megfelelő JSON!");
     }
 }
 
 // Webszerver a Render életben tartásához
 app.get('/', (req, res) => {
-    res.send('<h1>AutoDJ Online 🎵</h1><p>A rádióbot sikeresen fut a Renderen.</p>');
+    res.send('<h1>AutoDJ Online 🎵</h1><p>A rádió folyamatosan sugároz.</p>');
 });
 
 app.listen(PORT, () => {
@@ -32,17 +32,21 @@ const SERVER_IP = 'uk18freenew.listen2myradio.com';
 const SHOUTCAST_PORT = 9411;
 const SOURCE_PASS = '2002';
 
-// --- ZENE LISTA ---
+// --- ZENE LISTA (Cseréld le ezeket valódi YouTube linkekre!) ---
 const YOUTUBE_LINKS = [
-    'https://www.youtube.com/watch?v=RzRhcnN-2XQ',
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Példa link 1
+    'https://www.youtube.com/watch?v=jfKfPfyJRdk'  // Példa link 2
 ];
 
 function playNext() {
+    if (YOUTUBE_LINKS.length === 0) {
+        console.error(">>> [HIBA] Nincsenek linkek a listában!");
+        return;
+    }
+
     const randomUrl = YOUTUBE_LINKS[Math.floor(Math.random() * YOUTUBE_LINKS.length)];
     console.log(`>>> [AutoDJ] Következő dal indítása: ${randomUrl}`);
 
-    // YouTube stream kérése a sütikkel (agent)
     const stream = ytdl(randomUrl, {
         filter: 'audioonly',
         quality: 'highestaudio',
@@ -50,30 +54,30 @@ function playNext() {
         agent: agent 
     });
 
-    // Átkódolás MP3-ba és küldés a Shoutcast szerverre
+    // Átkódolás és küldés
     ffmpeg(stream)
         .audioCodec('libmp3lame')
         .audioBitrate(128)
         .audioFrequency(44100)
         .format('mp3')
         .outputOptions([
-            '-content_type audio/mpeg',
-            '-metadata title="YouTube Auto DJ"'
+            '-content_type', 'audio/mpeg',
+            '-metadata', 'title=YouTube Auto DJ'
         ])
         .save(`http://source:${SOURCE_PASS}@${SERVER_IP}:${SHOUTCAST_PORT}`)
         .on('start', () => {
             console.log('>>> [SZERVER] Csatlakozva a rádióhoz. Adás elindult!');
         })
         .on('end', () => {
-            console.log('>>> [AutoDJ] Dal vége, váltás...');
+            console.log('>>> [AutoDJ] Szám vége, váltás...');
             playNext();
         })
         .on('error', (err) => {
             console.error('>>> [HIBA]', err.message);
-            // Hiba esetén 10 másodperc múlva újrapróbálja
+            // Ha hiba van, 10 mp múlva újrapróbálja
             setTimeout(playNext, 10000);
         });
 }
 
-// Bot indítása
+// Indítás
 playNext();
