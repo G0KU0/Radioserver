@@ -3,54 +3,44 @@ const ytdl = require('@distube/ytdl-core');
 const ffmpeg = require('fluent-ffmpeg');
 const app = express();
 
-// --- ALAPBEÁLLÍTÁSOK ---
 const PORT = process.env.PORT || 10000;
 
-// Sütik (Cookie) betöltése a JSON formátumból
+// Sütik betöltése és ügynök létrehozása
 let agent;
 if (process.env.YT_COOKIE) {
     try {
         const cookies = JSON.parse(process.env.YT_COOKIE);
         agent = ytdl.createAgent(cookies);
-        console.log(">>> [RENDSZER] Sütik sikeresen betöltve. YouTube hozzáférés OK.");
+        console.log(">>> [RENDSZER] Sütik betöltve.");
     } catch (e) {
-        console.error(">>> [HIBA] A YT_COOKIE formátuma nem megfelelő JSON! Ellenőrizd a Rendert!");
+        console.error(">>> [HIBA] JSON hiba a sütiknél!");
     }
 }
 
-// Webszerver a Render életben tartásához
-app.get('/', (req, res) => {
-    res.send('<h1>AutoDJ Online 🎵</h1><p>A rádió folyamatosan sugároz.</p>');
-});
+app.get('/', (req, res) => res.send('AutoDJ fut! 🎵'));
+app.listen(PORT, () => console.log(`Webszerver: ${PORT}`));
 
-app.listen(PORT, () => {
-    console.log(`>>> [WEBSZERVER] Fut a ${PORT} porton.`);
-});
-
-// --- RÁDIÓ SZERVER ADATOK ---
 const SERVER_IP = 'uk18freenew.listen2myradio.com';
 const SHOUTCAST_PORT = 9411;
 const SOURCE_PASS = '2002';
 
-// --- A TE ZENE LISTÁD (Csak az az egy link, amit kértél) ---
 const YOUTUBE_LINKS = [
-    'https://www.youtube.com/watch?v=RzRhcnN-2XQ&feature=youtu.be'
+    'https://www.youtube.com/watch?v=RzRhcnN-2XQ' // Sickick - Infected
 ];
 
 function playNext() {
-    if (YOUTUBE_LINKS.length === 0) return;
-
-    const url = YOUTUBE_LINKS[0]; // Mivel csak egy link van
+    const url = YOUTUBE_LINKS[Math.floor(Math.random() * YOUTUBE_LINKS.length)];
     console.log(`>>> [AutoDJ] Indítás: ${url}`);
 
+    // Letöltés beállításai: IOS és ANDROID kliensnek álcázva
     const stream = ytdl(url, {
         filter: 'audioonly',
         quality: 'highestaudio',
         highWaterMark: 1 << 25,
-        agent: agent 
+        agent: agent,
+        playerClients: ['IOS', 'ANDROID', 'TV'] // Ez segít a decipher hiba ellen
     });
 
-    // FFmpeg átalakítás és küldés a Shoutcast szerverre
     ffmpeg(stream)
         .audioCodec('libmp3lame')
         .audioBitrate(128)
@@ -62,18 +52,14 @@ function playNext() {
         ])
         .save(`http://source:${SOURCE_PASS}@${SERVER_IP}:${SHOUTCAST_PORT}`)
         .on('start', () => {
-            console.log('>>> [SZERVER] Csatlakozva a rádióhoz. Adás elindult!');
+            console.log('>>> [SZERVER] Csatlakozva a rádióhoz!');
         })
-        .on('end', () => {
-            console.log('>>> [AutoDJ] Dal vége, újraindítás...');
-            playNext(); // Mivel csak egy dal van, újra elindítja ugyanazt
-        })
+        .on('end', () => playNext())
         .on('error', (err) => {
             console.error('>>> [HIBA]', err.message);
-            // Hiba esetén (pl. hálózati szakadás) 10 mp múlva újrapróbálja
-            setTimeout(playNext, 10000);
+            // Ha a hiba "No such format found", várjunk egy kicsit, hátha javul
+            setTimeout(playNext, 15000);
         });
 }
 
-// Bot indítása
 playNext();
