@@ -1,12 +1,19 @@
 FROM node:20
 
-# FFmpeg telepítése a rendszerre
+# FFmpeg telepítése (nélküle nincs hang)
 RUN apt-get update && apt-get install -y ffmpeg
 
 WORKDIR /app
+
+# Függőségek telepítése
 COPY package*.json ./
 RUN npm install
+
+# Teljes kód másolása
 COPY . .
 
-EXPOSE 3000
+# Port megnyitása
+EXPOSE 10000
+
+# Indítás
 CMD ["node", "index.js"]
