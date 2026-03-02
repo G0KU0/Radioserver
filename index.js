@@ -25,7 +25,7 @@ const SHOUTCAST_PORT = 9411;
 const SOURCE_PASS = '2002';
 
 // A videó ID-ja (Sickick - Infected)
-const VIDEO_URL = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ';
+const VIDEO_URL = 'https://www.youtube.com/watch?v=A9eneMWen3U&feature=youtu.be';
 
 function playNext() {
     console.log(`>>> [AutoDJ] Indítás: ${VIDEO_URL}`);
