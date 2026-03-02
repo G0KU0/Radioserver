@@ -5,47 +5,52 @@ const app = express();
 
 // --- BEÁLLÍTÁSOK ---
 const PORT = process.env.PORT || 10000;
-const YT_COOKIE = process.env.YT_COOKIE; // A Render-en megadott hosszú szöveg
 
+// Sütik (Cookie) betöltése az Environment Variable-ből
+let agent;
+if (process.env.YT_COOKIE) {
+    try {
+        const cookies = JSON.parse(process.env.YT_COOKIE);
+        agent = ytdl.createAgent(cookies);
+        console.log(">>> [RENDSZER] Sütik sikeresen betöltve. YouTube hozzáférés OK.");
+    } catch (e) {
+        console.error(">>> [HIBA] A YT_COOKIE nem érvényes JSON! Ellenőrizd a Render beállításait.");
+    }
+}
+
+// Webszerver a Render életben tartásához
+app.get('/', (req, res) => {
+    res.send('<h1>AutoDJ Online 🎵</h1><p>A rádióbot sikeresen fut a Renderen.</p>');
+});
+
+app.listen(PORT, () => {
+    console.log(`>>> [WEBSZERVER] Fut a ${PORT} porton.`);
+});
+
+// --- RÁDIÓ SZERVER ADATOK ---
 const SERVER_IP = 'uk18freenew.listen2myradio.com';
 const SHOUTCAST_PORT = 9411;
 const SOURCE_PASS = '2002';
 
+// --- ZENE LISTA ---
 const YOUTUBE_LINKS = [
-    'https://www.youtube.com/watch?v=eK0xGydFN68', // Példa zene
-    'https://www.youtube.com/watch?v=eK0xGydFN68', 
-    // Ide pakolj minél több linket vesszővel elválasztva!
+    'https://www.youtube.com/watch?v=RzRhcnN-2XQ',
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 ];
 
-// Egyszerű weboldal a Render számára
-app.get('/', (req, res) => {
-    res.send('<h1>AutoDJ Online 🎵</h1><p>A rádió folyamatosan sugároz.</p>');
-});
-
-app.listen(PORT, () => {
-    console.log(`Webszerver aktív a ${PORT} porton.`);
-});
-
 function playNext() {
-    if (YOUTUBE_LINKS.length === 0) {
-        console.error("Hiba: Nincsenek YouTube linkek a listában!");
-        return;
-    }
-
     const randomUrl = YOUTUBE_LINKS[Math.floor(Math.random() * YOUTUBE_LINKS.length)];
-    console.log(`[AutoDJ] Most játszom: ${randomUrl}`);
+    console.log(`>>> [AutoDJ] Következő dal indítása: ${randomUrl}`);
 
+    // YouTube stream kérése a sütikkel (agent)
     const stream = ytdl(randomUrl, {
         filter: 'audioonly',
         quality: 'highestaudio',
         highWaterMark: 1 << 25,
-        requestOptions: {
-            headers: {
-                cookie: YT_COOKIE || ""
-            }
-        }
+        agent: agent 
     });
 
+    // Átkódolás MP3-ba és küldés a Shoutcast szerverre
     ffmpeg(stream)
         .audioCodec('libmp3lame')
         .audioBitrate(128)
@@ -55,19 +60,18 @@ function playNext() {
             '-content_type audio/mpeg',
             '-metadata title="YouTube Auto DJ"'
         ])
-        // Csatlakozás a listen2myradio szerverhez
         .save(`http://source:${SOURCE_PASS}@${SERVER_IP}:${SHOUTCAST_PORT}`)
         .on('start', () => {
-            console.log('>>> Adás sikeresen elindult a szerveren!');
+            console.log('>>> [SZERVER] Csatlakozva a rádióhoz. Adás elindult!');
         })
         .on('end', () => {
-            console.log('>>> Szám vége, jön a következő...');
+            console.log('>>> [AutoDJ] Dal vége, váltás...');
             playNext();
         })
         .on('error', (err) => {
-            console.error('>>> HIBA:', err.message);
-            // Ha hiba van, 5 mp múlva próbálja a következőt (pl. ha letiltott a YT)
-            setTimeout(playNext, 5000);
+            console.error('>>> [HIBA]', err.message);
+            // Hiba esetén 10 másodperc múlva újrapróbálja
+            setTimeout(playNext, 10000);
         });
 }
 
