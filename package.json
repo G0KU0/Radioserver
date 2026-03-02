@@ -1,13 +1,13 @@
 {
-  "name": "youtube-shoutcast-bot",
-  "version": "1.0.4",
+  "name": "shoutcast-stream",
+  "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@distube/ytdl-core": "4.16.12",
-    "express": "^4.18.2",
-    "fluent-ffmpeg": "^2.1.2"
+    "express": "^4.17.1",
+    "ytdl-core": "^4.9.1",
+    "shoutcast-server": "^1.0.0"
   }
 }
