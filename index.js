@@ -1,8 +1,7 @@
-// index.js
-
 const express = require('express');
 const ytdl = require('ytdl-core');
-const ffmpeg = require('fluent-ffmpeg');
+const shoutcastClient = require('shoutcast-client'); // Shoutcast client library
+const fs = require('fs');
 
 // Express alkalmazás létrehozása
 const app = express();
@@ -13,41 +12,54 @@ const shoutcastDetails = {
   ip: 'uk3freenew.listen2myradio.com',
   port: 31822,
   password: '2002',
+  mount: '/stream', // Mountpoint, amit a Shoutcast használ
+  username: 'admin', // Shoutcast admin felhasználó
 };
 
 // YouTube videó URL
 const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ'; // A YouTube videó URL
 
-// YouTube stream áramlásának küldése Shoutcast-ra FFmpeg segítségével
-const streamToShoutcast = (youtubeUrl) => {
-  const stream = ytdl(youtubeUrl, {
+// Streamelés a Shoutcast szerverre
+const streamToShoutcast = () => {
+  const youtubeStream = ytdl(youtubeUrl, {
     filter: 'audioonly',
     quality: 'highestaudio',
   });
 
-  ffmpeg()
-    .input(stream)
-    .inputFormat('mp4') // Az mp4 bemeneti formátumot használjuk a YouTube audiohoz
-    .audioCodec('libmp3lame') // MP3 kódolás
-    .audioBitrate(128) // MP3 bitráta
-    .format('mp3') // Kimeneti formátum
-    .output(`http://${shoutcastDetails.ip}:${shoutcastDetails.port}`) // Shoutcast kimeneti cím
-    .on('start', () => {
-      console.log('Streaming started...');
-    })
-    .on('error', (err) => {
-      console.error('Error:', err);
-    })
-    .on('end', () => {
-      console.log('Streaming ended.');
-    })
-    .run();
+  // Shoutcast kliens kapcsolat
+  const client = new shoutcastClient.Client({
+    host: shoutcastDetails.ip,
+    port: shoutcastDetails.port,
+    password: shoutcastDetails.password,
+    mount: shoutcastDetails.mount,
+    username: shoutcastDetails.username,
+  });
+
+  client.on('connect', () => {
+    console.log('Connected to Shoutcast server');
+  });
+
+  client.on('error', (err) => {
+    console.error('Shoutcast connection error:', err);
+  });
+
+  // Streamelés YouTube-ból a Shoutcast-ra
+  youtubeStream.pipe(client);
+  
+  client.start(() => {
+    console.log('Shoutcast streaming started...');
+  });
+
+  youtubeStream.on('end', () => {
+    console.log('YouTube stream ended.');
+    client.stop(); // Ha a stream véget ér, állítsuk le a Shoutcast kapcsolatot
+  });
 };
 
-// Streaming indítása endpoint
+// Endpoint a stream indítására
 app.get('/start-stream', (req, res) => {
-  streamToShoutcast(youtubeUrl);
-  res.send('Streaming started...');
+  streamToShoutcast();
+  res.send('Streaming started from YouTube...');
 });
 
 // Alapértelmezett útvonal
