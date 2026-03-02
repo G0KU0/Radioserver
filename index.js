@@ -21,8 +21,8 @@ const SHOUTCAST_PORT = 9411;
 const SOURCE_PASS = '2002';
 
 const YOUTUBE_LINKS = [
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Ide írd a saját linkjeidet
-    'https://www.youtube.com/watch?v=5qap5aO4i9A'
+    'https://www.youtube.com/watch?v=eK0xGydFN68&feature=youtu.be', // Ide írd a saját linkjeidet
+    'https://www.youtube.com/watch?v=eK0xGydFN68&feature=youtu.be'
 ];
 
 function playNext() {
