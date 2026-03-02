@@ -9,7 +9,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "ytdl-core": "^4.9.1",
-    "fluent-ffmpeg": "^2.1.2"
+    "shoutcast-client": "^1.0.0"
   },
   "engines": {
     "node": "22.x"
