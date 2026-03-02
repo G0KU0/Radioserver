@@ -1,6 +1,6 @@
 FROM node:20
 
-# FFmpeg és Python telepítése (a yt-dlp-hez kell)
+# FFmpeg, Python és yt-dlp telepítése
 RUN apt-get update && apt-get install -y ffmpeg python3 python3-pip
 RUN pip3 install --break-system-packages yt-dlp
 
