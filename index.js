@@ -1,58 +1,61 @@
-// Required packages
+// index.js
+
 const express = require('express');
 const ytdl = require('ytdl-core');
-const shoutcast = require('shoutcast-server');
+const ffmpeg = require('fluent-ffmpeg');
 
-// Create an Express app
+// Express alkalmazás létrehozása
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Stream YouTube content to Shoutcast server
-const streamToShoutcast = (youtubeUrl, shoutcastDetails) => {
-  const { ip, port, password } = shoutcastDetails;
-  
-  // Set up the shoutcast server
-  const scServer = shoutcast.createServer({
-    ip: ip,
-    port: port,
-    password: password,
-  });
-
-  // Get the YouTube stream
-  const youtubeStream = ytdl(youtubeUrl, {
-    filter: 'audioonly',
-    quality: 'highestaudio',
-  });
-
-  // Pipe the YouTube audio to the Shoutcast server
-  youtubeStream.pipe(scServer);
-
-  console.log('Streaming YouTube to Shoutcast server...');
-  scServer.start();  // Start the Shoutcast server
-};
-
-// Example Shoutcast details (replace with the actual info)
+// Shoutcast szerver részletei
 const shoutcastDetails = {
   ip: 'uk3freenew.listen2myradio.com',
   port: 31822,
   password: '2002',
 };
 
-// Endpoint to start streaming (with a fixed YouTube URL)
-app.get('/start-stream', (req, res) => {
-  const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ';  // YouTube URL
+// YouTube videó URL
+const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ'; // A YouTube videó URL
 
-  // Start streaming the YouTube video to Shoutcast server
-  streamToShoutcast(youtubeUrl, shoutcastDetails);
-  res.send('Streaming started from YouTube...');
+// YouTube stream áramlásának küldése Shoutcast-ra FFmpeg segítségével
+const streamToShoutcast = (youtubeUrl) => {
+  const stream = ytdl(youtubeUrl, {
+    filter: 'audioonly',
+    quality: 'highestaudio',
+  });
+
+  ffmpeg()
+    .input(stream)
+    .inputFormat('mp4') // Az mp4 bemeneti formátumot használjuk a YouTube audiohoz
+    .audioCodec('libmp3lame') // MP3 kódolás
+    .audioBitrate(128) // MP3 bitráta
+    .format('mp3') // Kimeneti formátum
+    .output(`http://${shoutcastDetails.ip}:${shoutcastDetails.port}`) // Shoutcast kimeneti cím
+    .on('start', () => {
+      console.log('Streaming started...');
+    })
+    .on('error', (err) => {
+      console.error('Error:', err);
+    })
+    .on('end', () => {
+      console.log('Streaming ended.');
+    })
+    .run();
+};
+
+// Streaming indítása endpoint
+app.get('/start-stream', (req, res) => {
+  streamToShoutcast(youtubeUrl);
+  res.send('Streaming started...');
 });
 
-// Default route
+// Alapértelmezett útvonal
 app.get('/', (req, res) => {
   res.send('Welcome to the Radio Stream!');
 });
 
-// Start the Express server
+// Express szerver indítása
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
