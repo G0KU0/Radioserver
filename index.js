@@ -5,7 +5,7 @@ const app = express();
 
 const PORT = process.env.PORT || 10000;
 
-// Sütik betöltése és ügynök létrehozása
+// Sütik betöltése
 let agent;
 if (process.env.YT_COOKIE) {
     try {
@@ -13,51 +13,48 @@ if (process.env.YT_COOKIE) {
         agent = ytdl.createAgent(cookies);
         console.log(">>> [RENDSZER] Sütik betöltve.");
     } catch (e) {
-        console.error(">>> [HIBA] JSON hiba a sütiknél!");
+        console.error(">>> [HIBA] Süti formátum hiba!");
     }
 }
 
 app.get('/', (req, res) => res.send('AutoDJ fut! 🎵'));
-app.listen(PORT, () => console.log(`Webszerver: ${PORT}`));
+app.listen(PORT, () => console.log(`Szerver fut: ${PORT}`));
 
 const SERVER_IP = 'uk18freenew.listen2myradio.com';
 const SHOUTCAST_PORT = 9411;
 const SOURCE_PASS = '2002';
 
-const YOUTUBE_LINKS = [
-    'https://www.youtube.com/watch?v=RzRhcnN-2XQ' // Sickick - Infected
-];
+// A videó ID-ja (Sickick - Infected)
+const VIDEO_URL = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ';
 
 function playNext() {
-    const url = YOUTUBE_LINKS[Math.floor(Math.random() * YOUTUBE_LINKS.length)];
-    console.log(`>>> [AutoDJ] Indítás: ${url}`);
+    console.log(`>>> [AutoDJ] Indítás: ${VIDEO_URL}`);
 
-    // Letöltés beállításai: IOS és ANDROID kliensnek álcázva
-    const stream = ytdl(url, {
+    // Bonyolultabb beállítások a 403-as hiba elkerülésére
+    const stream = ytdl(VIDEO_URL, {
         filter: 'audioonly',
         quality: 'highestaudio',
         highWaterMark: 1 << 25,
         agent: agent,
-        playerClients: ['IOS', 'ANDROID', 'TV'] // Ez segít a decipher hiba ellen
+        // Ezzel próbáljuk megkerülni a 403-at:
+        playerClients: ['ANDROID', 'IOS', 'TV', 'WEB_EMBEDDED'] 
     });
 
     ffmpeg(stream)
         .audioCodec('libmp3lame')
         .audioBitrate(128)
-        .audioFrequency(44100)
         .format('mp3')
-        .outputOptions([
-            '-content_type', 'audio/mpeg',
-            '-metadata', 'title=YouTube Auto DJ'
-        ])
         .save(`http://source:${SOURCE_PASS}@${SERVER_IP}:${SHOUTCAST_PORT}`)
         .on('start', () => {
-            console.log('>>> [SZERVER] Csatlakozva a rádióhoz!');
+            console.log('>>> [SZERVER] Sugárzás elindult!');
         })
-        .on('end', () => playNext())
+        .on('end', () => {
+            console.log('>>> Dal vége, újraindítás...');
+            playNext();
+        })
         .on('error', (err) => {
             console.error('>>> [HIBA]', err.message);
-            // Ha a hiba "No such format found", várjunk egy kicsit, hátha javul
+            // Ha 403 hiba van, 15 másodperc múlva próbálja újra
             setTimeout(playNext, 15000);
         });
 }
