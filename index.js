@@ -1,5 +1,6 @@
 const express = require('express');
 const { spawn } = require('child_process');
+const fs = require('fs');
 const app = express();
 
 const PORT = process.env.PORT || 10000;
@@ -7,8 +8,14 @@ const SERVER_IP = 'uk18freenew.listen2myradio.com';
 const SHOUTCAST_PORT = '9411';
 const SOURCE_PASS = '2002';
 
-// FONTOS: Csak igazi YouTube linket használj!
-const VIDEO_URL = 'http://www.youtube.com/watch?v=RzRhcnN-2XQ';
+// A TE VALÓDI YOUTUBE LINKED
+const VIDEO_URL = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ';
+
+// Sütik kiírása fájlba a yt-dlp számára
+if (process.env.YT_COOKIE) {
+    fs.writeFileSync('cookies.json', process.env.YT_COOKIE);
+    console.log(">>> [RENDSZER] cookies.json létrehozva.");
+}
 
 app.get('/', (req, res) => res.send('AutoDJ fut a Renderen! 🎵'));
 app.listen(PORT, () => console.log(`Szerver aktív: ${PORT}`));
@@ -16,16 +23,16 @@ app.listen(PORT, () => console.log(`Szerver aktív: ${PORT}`));
 function startStream() {
     console.log(`>>> [AutoDJ] Indítás: ${VIDEO_URL}`);
 
-    // yt-dlp indítása (ez kéri le a hangot a YouTube-ról)
+    // yt-dlp indítása sütikkel és android kliens álcával
     const ytDlp = spawn('yt-dlp', [
-        '-o', '-', 
+        '--cookies', 'cookies.json',
+        '-o', '-',
+        '--format', 'bestaudio',
         '--no-playlist',
-        '--extract-audio',
-        '--audio-format', 'mp3',
         VIDEO_URL
     ]);
 
-    // ffmpeg indítása (ez küldi el a Shoutcast szerverre)
+    // ffmpeg indítása a Shoutcast küldéshez
     const ffmpeg = spawn('ffmpeg', [
         '-re', '-i', 'pipe:0',
         '-c:a', 'libmp3lame', '-ab', '128k', '-f', 'mp3',
@@ -34,18 +41,24 @@ function startStream() {
 
     ytDlp.stdout.pipe(ffmpeg.stdin);
 
-    ytDlp.stderr.on('data', (data) => console.log(`[yt-dlp]: ${data}`));
+    // Hibák figyelése
+    ytDlp.stderr.on('data', (data) => {
+        const msg = data.toString();
+        if (msg.includes('403')) console.error('>>> [YT HIBA] 403 Forbidden! Új sütik kellenek!');
+    });
+
     ffmpeg.stderr.on('data', (data) => {
         const msg = data.toString();
         if (msg.includes('Connection refused')) {
-            console.error('>>> [HIBA] A rádió szerver elutasította a kapcsolatot! Be van kapcsolva a panelen?');
+            console.error('>>> [RÁDIÓ HIBA] A szerver elutasította a kapcsolatot! Kapcsold be a panelen!');
         }
     });
 
     ffmpeg.on('close', () => {
-        console.log('>>> Stream vége, újraindítás 15 mp múlva...');
-        setTimeout(startStream, 15000);
+        console.log('>>> Újraindítás 10 mp múlva...');
+        setTimeout(startStream, 10000);
     });
 }
 
-startStream();
+// Rövid várakozás indítás előtt
+setTimeout(startStream, 5000);
