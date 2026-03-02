@@ -1,6 +1,7 @@
 {
-  "name": "shoutcast-stream",
+  "name": "youtube-shoutcast-stream",
   "version": "1.0.0",
+  "description": "Stream YouTube audio to Shoutcast",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -8,6 +9,9 @@
   "dependencies": {
     "express": "^4.17.1",
     "ytdl-core": "^4.9.1",
-    "shoutcast-server": "^1.0.0"
+    "fluent-ffmpeg": "^2.1.2"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
