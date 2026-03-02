@@ -1,68 +1,64 @@
 const express = require('express');
 const ytdl = require('ytdl-core');
-const shoutcastClient = require('shoutcast-client'); // Shoutcast client library
-const fs = require('fs');
+const net = require('net');  // TCP kapcsolat a Shoutcast szerverhez
 
-// Express alkalmazás létrehozása
+// Express alkalmazás
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Shoutcast szerver részletei
+// Shoutcast szerver beállítások
 const shoutcastDetails = {
   ip: 'uk3freenew.listen2myradio.com',
   port: 31822,
   password: '2002',
-  mount: '/stream', // Mountpoint, amit a Shoutcast használ
-  username: 'admin', // Shoutcast admin felhasználó
+  mount: '/stream',  // Mount point beállítás
+  username: 'admin', // Admin felhasználó
 };
 
-// YouTube videó URL
-const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ'; // A YouTube videó URL
+// YouTube URL
+const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ'; // YouTube URL
 
-// Streamelés a Shoutcast szerverre
+// Funkció, hogy streameljük a YouTube audiót a Shoutcast szerverre
 const streamToShoutcast = () => {
+  // YouTube stream
   const youtubeStream = ytdl(youtubeUrl, {
     filter: 'audioonly',
     quality: 'highestaudio',
   });
 
-  // Shoutcast kliens kapcsolat
-  const client = new shoutcastClient.Client({
-    host: shoutcastDetails.ip,
-    port: shoutcastDetails.port,
-    password: shoutcastDetails.password,
-    mount: shoutcastDetails.mount,
-    username: shoutcastDetails.username,
-  });
-
-  client.on('connect', () => {
+  // TCP socket kapcsolat a Shoutcast szerverhez
+  const socket = net.createConnection(shoutcastDetails.port, shoutcastDetails.ip, () => {
     console.log('Connected to Shoutcast server');
+    
+    // Hitelesítés és stream mount beállítás
+    socket.write(`GET ${shoutcastDetails.mount} HTTP/1.0\r\n`);
+    socket.write(`Authorization: Basic ${Buffer.from(shoutcastDetails.username + ':' + shoutcastDetails.password).toString('base64')}\r\n`);
+    socket.write(`Content-Type: audio/mpeg\r\n`);
+    socket.write('Connection: close\r\n\r\n');
+    
+    // A YouTube streamet adatfolyamként továbbítjuk a Shoutcast szerverre
+    youtubeStream.pipe(socket);
   });
 
-  client.on('error', (err) => {
-    console.error('Shoutcast connection error:', err);
+  // Hiba kezelés
+  socket.on('error', (err) => {
+    console.error('Error:', err);
   });
 
-  // Streamelés YouTube-ból a Shoutcast-ra
-  youtubeStream.pipe(client);
-  
-  client.start(() => {
-    console.log('Shoutcast streaming started...');
-  });
-
+  // Amikor a stream befejeződik
   youtubeStream.on('end', () => {
     console.log('YouTube stream ended.');
-    client.stop(); // Ha a stream véget ér, állítsuk le a Shoutcast kapcsolatot
+    socket.end();
   });
 };
 
-// Endpoint a stream indítására
+// Express route a stream indításához
 app.get('/start-stream', (req, res) => {
   streamToShoutcast();
-  res.send('Streaming started from YouTube...');
+  res.send('Streaming started...');
 });
 
-// Alapértelmezett útvonal
+// Alapértelmezett route
 app.get('/', (req, res) => {
   res.send('Welcome to the Radio Stream!');
 });
