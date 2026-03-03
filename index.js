@@ -15,20 +15,21 @@ const PLAYLIST = [
     'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Példa dal
 ];
 
-// --- SÜTI KONVERTÁLÓ (JSON -> NETSCAPE) ---
+// --- SÜTI KONVERTÁLÓ (A DOMAIN JAVÍTÁSÁVAL) ---
 function jsonToNetscape(jsonStr) {
     try {
         const cookies = JSON.parse(jsonStr);
         let netscapeStr = "# Netscape HTTP Cookie File\n# http://curl.haxx.se/rfc/cookie_spec.html\n# This is a generated file!  Do not edit.\n\n";
         for (const c of cookies) {
-            const domain = c.domain || ".youtube.com";
-            // Netscape formátum szabályok
-            const flag = domain.startsWith('.') ? "TRUE" : "FALSE";
+            // KÖTELEZŐ: A YouTube-nak szánt sütik domainjét át kell írni .youtube.com -ra!
+            const domain = ".youtube.com";
+            const flag = "TRUE";
             const path = c.path || "/";
-            const secure = c.secure ? "TRUE" : "FALSE";
-            const expiry = c.expirationDate ? Math.round(c.expirationDate) : 0;
+            const secure = "TRUE";
+            // Ha nincs lejárat, adjunk neki egy távoli jövőbeli időpontot
+            const expiry = c.expirationDate ? Math.round(c.expirationDate) : 2147483647; 
             
-            // Tabulátorokkal elválasztott sor hozzáadása
+            // Netscape formátumú sor
             netscapeStr += `${domain}\t${flag}\t${path}\t${secure}\t${expiry}\t${c.name}\t${c.value}\n`;
         }
         return netscapeStr;
@@ -38,12 +39,12 @@ function jsonToNetscape(jsonStr) {
     }
 }
 
-// Sütik mentése a megfelelő formátumban (cookies.txt)
+// Sütik mentése
 if (process.env.YT_COOKIE) {
     const netscapeCookies = jsonToNetscape(process.env.YT_COOKIE);
     if (netscapeCookies) {
         fs.writeFileSync('cookies.txt', netscapeCookies);
-        console.log(">>> [RENDSZER] cookies.txt (Netscape formátum) sikeresen létrehozva.");
+        console.log(">>> [RENDSZER] cookies.txt (Javított domainnel) létrehozva.");
     }
 }
 
@@ -58,8 +59,14 @@ function playNextSong() {
     const videoUrl = PLAYLIST[currentSongIndex];
     console.log(`\n>>> 🎵 KÖVETKEZŐ DAL INDÍTÁSA: ${videoUrl}`);
 
-    // YT-DLP: Zene letöltése (most már txt kiterjesztésű sütifájllal)
-    const ytDlpArgs = ['-o', '-', '--format', 'bestaudio', '--no-playlist'];
+    // YT-DLP paraméterek (Több formátummal próbálkozunk)
+    const ytDlpArgs = [
+        '-o', '-', 
+        // JAVÍTÁS: Próbálja a legjobb hangot, ha nincs, a legjobb videót, ha az sincs, a 18-as (360p) formátumot!
+        '--format', 'bestaudio/best/18', 
+        '--no-playlist'
+    ];
+    
     if (fs.existsSync('cookies.txt')) {
         ytDlpArgs.push('--cookies', 'cookies.txt');
     }
@@ -67,7 +74,7 @@ function playNextSong() {
 
     const ytDlp = spawn('yt-dlp', ytDlpArgs);
 
-    // FFMPEG: Valós idejű kódolás és küldés
+    // FFMPEG paraméterek
     const ffmpegArgs = [
         '-re', 
         '-i', 'pipe:0', 
@@ -82,11 +89,12 @@ function playNextSong() {
 
     const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
+    // Csövezzük (pipe) az adatot
     ytDlp.stdout.pipe(ffmpeg.stdin);
 
+    // Hibafigyelők
     ytDlp.stderr.on('data', (data) => {
         const msg = data.toString();
-        // Ne írjunk ki mindent, csak a valódi hibákat
         if (msg.includes('ERROR') || msg.includes('403')) {
             console.error(`[YT Hiba]: ${msg}`);
         }
