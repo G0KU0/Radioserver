@@ -10,8 +10,8 @@ const SOURCE_PASS = '2002';
 
 // Ide rakd be az eredeti YouTube linkjeidet!
 const PLAYLIST = [
-    'https://www.youtube.com/watch?v=RzRhcnN-2XQ', 
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  
+    'https://www.youtube.com/watch?v=RzRhcnN-2XQ', // Sickick - Infected
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Rick Astley
 ];
 
 // --- JAVÍTOTT SÜTI KONVERTÁLÓ ---
@@ -45,7 +45,13 @@ if (process.env.YT_COOKIE) {
 }
 
 app.get('/', (req, res) => res.send('AutoDJ Status: Online 📻'));
-app.listen(PORT, () => console.log(`Webszerver fut a ${PORT} porton.`));
+
+// A szerver indulása után azonnal indítjuk a zenét is!
+app.listen(PORT, () => {
+    console.log(`Webszerver fut a ${PORT} porton.`);
+    console.log(">>> Indító parancs elküldve...");
+    playNextSong();
+});
 
 let currentSongIndex = 0;
 
@@ -72,21 +78,23 @@ function playNextSong() {
 
     ytDlp.stdout.pipe(ffmpeg.stdin);
 
+    // Lássunk mindent, amit a yt-dlp csinál (Debug mód)
     ytDlp.stderr.on('data', (data) => {
+        const msg = data.toString().trim();
+        if (msg) console.log(`[YT Log]: ${msg}`);
+    });
+
+    ffmpeg.stderr.on('data', (data) => {
         const msg = data.toString();
-        // A letöltő hibáinak kijelzése
-        if (msg.includes('ERROR') || msg.includes('403')) {
-            console.error(`[YT Hiba]: ${msg}`);
+        if (msg.includes('Connection refused')) {
+            console.error('\n>>> ❌ KRITIKUS HIBA: A rádiószerver elutasított! KAPCSOLD BE A LISTEN2MYRADIO PANELEN!\n');
         }
     });
 
     ffmpeg.on('close', () => {
-        console.log('>>> 🛑 Dal vége.');
+        console.log('>>> 🛑 Dal vége vagy megszakadt a kapcsolat.');
         currentSongIndex = (currentSongIndex + 1) % PLAYLIST.length;
         console.log('>>> 🔄 Váltás a következő zenére 5 másodperc múlva...');
         setTimeout(playNextSong, 5000);
     });
 }
-
-// Rendszer indítása
-setTimeout(playNextSong, 3000);
