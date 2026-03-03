@@ -10,7 +10,7 @@ const SOURCE_PASS = '2002';
 
 const PLAYLIST = [
     'https://www.youtube.com/watch?v=RzRhcnN-2XQ', // Sickick - Infected
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Rick Astley
+    'https://www.youtube.com/watch?v=U-HfHDbTmBQ'  // Rick Astley
 ];
 
 function jsonToNetscape(jsonStr) {
