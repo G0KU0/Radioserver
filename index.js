@@ -1,8 +1,7 @@
 const express = require('express');
 const ytdl = require('ytdl-core');
-const net = require('net');  // TCP kapcsolat a Shoutcast szerverhez
+const ffmpeg = require('fluent-ffmpeg');
 
-// Express alkalmazás
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -11,12 +10,10 @@ const shoutcastDetails = {
   ip: 'uk3freenew.listen2myradio.com',
   port: 31822,
   password: '2002',
-  mount: '/stream',  // Mount point beállítás
-  username: 'admin', // Admin felhasználó
 };
 
 // YouTube URL
-const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ'; // YouTube URL
+const youtubeUrl = 'https://www.youtube.com/watch?v=RzRhcnN-2XQ'; // A YouTube videó URL
 
 // Funkció, hogy streameljük a YouTube audiót a Shoutcast szerverre
 const streamToShoutcast = () => {
@@ -26,30 +23,23 @@ const streamToShoutcast = () => {
     quality: 'highestaudio',
   });
 
-  // TCP socket kapcsolat a Shoutcast szerverhez
-  const socket = net.createConnection(shoutcastDetails.port, shoutcastDetails.ip, () => {
-    console.log('Connected to Shoutcast server');
-    
-    // Hitelesítés és stream mount beállítás
-    socket.write(`GET ${shoutcastDetails.mount} HTTP/1.0\r\n`);
-    socket.write(`Authorization: Basic ${Buffer.from(shoutcastDetails.username + ':' + shoutcastDetails.password).toString('base64')}\r\n`);
-    socket.write(`Content-Type: audio/mpeg\r\n`);
-    socket.write('Connection: close\r\n\r\n');
-    
-    // A YouTube streamet adatfolyamként továbbítjuk a Shoutcast szerverre
-    youtubeStream.pipe(socket);
-  });
-
-  // Hiba kezelés
-  socket.on('error', (err) => {
-    console.error('Error:', err);
-  });
-
-  // Amikor a stream befejeződik
-  youtubeStream.on('end', () => {
-    console.log('YouTube stream ended.');
-    socket.end();
-  });
+  ffmpeg()
+    .input(youtubeStream)
+    .inputFormat('mp4') // Az mp4 bemeneti formátumot használjuk a YouTube audiohoz
+    .audioCodec('libmp3lame') // MP3 kódolás
+    .audioBitrate(128) // MP3 bitráta
+    .format('mp3') // Kimeneti formátum
+    .output(`http://${shoutcastDetails.ip}:${shoutcastDetails.port}`) // Shoutcast kimeneti cím
+    .on('start', () => {
+      console.log('Streaming started...');
+    })
+    .on('error', (err) => {
+      console.error('Error:', err);
+    })
+    .on('end', () => {
+      console.log('Streaming ended.');
+    })
+    .run();
 };
 
 // Express route a stream indításához
