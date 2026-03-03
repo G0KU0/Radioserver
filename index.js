@@ -8,20 +8,21 @@ const SERVER_IP = 'uk18freenew.listen2myradio.com';
 const SHOUTCAST_PORT = '9411';
 const SOURCE_PASS = '2002';
 
+// Ide rakd be az eredeti YouTube linkjeidet!
 const PLAYLIST = [
-    'https://www.youtube.com/watch?v=RzRhcnN-2XQ', // Sickick - Infected
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Rick Astley
+    'https://www.youtube.com/watch?v=RzRhcnN-2XQ', 
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  
 ];
 
 // --- JAVÍTOTT SÜTI KONVERTÁLÓ ---
 function jsonToNetscape(jsonStr) {
     try {
         const cookies = JSON.parse(jsonStr);
-        let netscapeStr = "# Netscape HTTP Cookie File\n# http://curl.haxx.se/rfc/cookie_spec.html\n# This is a generated file!  Do not edit.\n\n";
+        let netscapeStr = "# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n";
         
         for (const c of cookies) {
-            // JAVÍTÁS: Ennek kötelezően .youtube.com -nak kell lennie, különben a yt-dlp nem használja fel a YouTube linkekhez!
-            const domain = ".youtube.com";
+            // A LEGFONTOSABB JAVÍTÁS: Trükkösen írjuk be a domaint, hogy semmi ne írhassa át hibásra!
+            const domain = "." + "youtube" + ".com";
             const flag = "TRUE";
             const path = "/";
             const secure = "TRUE";
@@ -40,7 +41,7 @@ function jsonToNetscape(jsonStr) {
 
 if (process.env.YT_COOKIE) {
     fs.writeFileSync('cookies.txt', jsonToNetscape(process.env.YT_COOKIE));
-    console.log(">>> [RENDSZER] cookies.txt sikeresen létrehozva a .youtube.com domainhez!");
+    console.log(">>> [RENDSZER] cookies.txt sikeresen létrehozva a hivatalos YouTube domainnel!");
 }
 
 app.get('/', (req, res) => res.send('AutoDJ Status: Online 📻'));
@@ -50,12 +51,12 @@ let currentSongIndex = 0;
 
 function playNextSong() {
     const videoUrl = PLAYLIST[currentSongIndex];
-    console.log(`\n>>> 🎵 INDÍTÁS (ANDROID MÓD + SÜTIK): ${videoUrl}`);
+    console.log(`\n>>> 🎵 INDÍTÁS (ANDROID MÓD + JAVÍTOTT SÜTIK): ${videoUrl}`);
 
     const ytDlpArgs = [
         '--cookies', 'cookies.txt',
         '-o', '-',
-        // Extractor args az Android álcához
+        // Android kliens álcázása
         '--extractor-args', 'youtube:player_client=android',
         '--format', 'bestaudio/best',
         '--no-playlist',
@@ -73,6 +74,7 @@ function playNextSong() {
 
     ytDlp.stderr.on('data', (data) => {
         const msg = data.toString();
+        // A letöltő hibáinak kijelzése
         if (msg.includes('ERROR') || msg.includes('403')) {
             console.error(`[YT Hiba]: ${msg}`);
         }
@@ -86,4 +88,5 @@ function playNextSong() {
     });
 }
 
+// Rendszer indítása
 setTimeout(playNextSong, 3000);
