@@ -12,25 +12,27 @@ const SOURCE_PASS = '2002';
 // --- LEJÁTSZÁSI LISTA ---
 const PLAYLIST = [
     'https://www.youtube.com/watch?v=RzRhcnN-2XQ', // Sickick - Infected
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Példa dal
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Rick Astley
 ];
 
-// --- SÜTI KONVERTÁLÓ (A DOMAIN JAVÍTÁSÁVAL) ---
+// --- SÜTI KONVERTÁLÓ (A JAVÍTOTT .youtube.com DOMAINNEL) ---
 function jsonToNetscape(jsonStr) {
     try {
         const cookies = JSON.parse(jsonStr);
         let netscapeStr = "# Netscape HTTP Cookie File\n# http://curl.haxx.se/rfc/cookie_spec.html\n# This is a generated file!  Do not edit.\n\n";
+        
         for (const c of cookies) {
-            // KÖTELEZŐ: A YouTube-nak szánt sütik domainjét át kell írni .youtube.com -ra!
+            // A LEGFONTOSABB JAVÍTÁS: Kényszerítjük a .youtube.com domaint!
             const domain = ".youtube.com";
             const flag = "TRUE";
-            const path = c.path || "/";
+            const path = "/";
             const secure = "TRUE";
-            // Ha nincs lejárat, adjunk neki egy távoli jövőbeli időpontot
-            const expiry = c.expirationDate ? Math.round(c.expirationDate) : 2147483647; 
+            const expiry = 2147483647; // Távoli jövő, hogy ne járjon le
             
-            // Netscape formátumú sor
-            netscapeStr += `${domain}\t${flag}\t${path}\t${secure}\t${expiry}\t${c.name}\t${c.value}\n`;
+            // Csak akkor adjuk hozzá, ha van neve és értéke a sütinek
+            if (c.name && c.value) {
+                netscapeStr += `${domain}\t${flag}\t${path}\t${secure}\t${expiry}\t${c.name}\t${c.value}\n`;
+            }
         }
         return netscapeStr;
     } catch (e) {
@@ -44,7 +46,7 @@ if (process.env.YT_COOKIE) {
     const netscapeCookies = jsonToNetscape(process.env.YT_COOKIE);
     if (netscapeCookies) {
         fs.writeFileSync('cookies.txt', netscapeCookies);
-        console.log(">>> [RENDSZER] cookies.txt (Javított domainnel) létrehozva.");
+        console.log(">>> [RENDSZER] cookies.txt sikeresen létrehozva a .youtube.com domainhez!");
     }
 }
 
@@ -59,11 +61,10 @@ function playNextSong() {
     const videoUrl = PLAYLIST[currentSongIndex];
     console.log(`\n>>> 🎵 KÖVETKEZŐ DAL INDÍTÁSA: ${videoUrl}`);
 
-    // YT-DLP paraméterek (Több formátummal próbálkozunk)
+    // YT-DLP paraméterek
     const ytDlpArgs = [
         '-o', '-', 
-        // JAVÍTÁS: Próbálja a legjobb hangot, ha nincs, a legjobb videót, ha az sincs, a 18-as (360p) formátumot!
-        '--format', 'bestaudio/best/18', 
+        '-f', 'bestaudio/best', 
         '--no-playlist'
     ];
     
