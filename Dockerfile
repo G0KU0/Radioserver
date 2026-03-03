@@ -1,3 +1,4 @@
+# Node.js alapú képkészítés
 FROM node:22
 
 # Alapvető csomagok telepítése
