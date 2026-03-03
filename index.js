@@ -21,7 +21,6 @@ function jsonToNetscape(jsonStr) {
         let netscapeStr = "# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n";
         
         for (const c of cookies) {
-            // A LEGFONTOSABB JAVÍTÁS: Trükkösen írjuk be a domaint, hogy semmi ne írhassa át hibásra!
             const domain = "." + "youtube" + ".com";
             const flag = "TRUE";
             const path = "/";
@@ -41,15 +40,13 @@ function jsonToNetscape(jsonStr) {
 
 if (process.env.YT_COOKIE) {
     fs.writeFileSync('cookies.txt', jsonToNetscape(process.env.YT_COOKIE));
-    console.log(">>> [RENDSZER] cookies.txt sikeresen létrehozva a hivatalos YouTube domainnel!");
+    console.log(">>> [RENDSZER] cookies.txt sikeresen létrehozva!");
 }
 
 app.get('/', (req, res) => res.send('AutoDJ Status: Online 📻'));
 
-// A szerver indulása után azonnal indítjuk a zenét is!
 app.listen(PORT, () => {
     console.log(`Webszerver fut a ${PORT} porton.`);
-    console.log(">>> Indító parancs elküldve...");
     playNextSong();
 });
 
@@ -57,14 +54,15 @@ let currentSongIndex = 0;
 
 function playNextSong() {
     const videoUrl = PLAYLIST[currentSongIndex];
-    console.log(`\n>>> 🎵 INDÍTÁS (MOBIL BÖNGÉSZŐ MÓD + SÜTIK): ${videoUrl}`);
+    console.log(`\n>>> 🎵 INDÍTÁS (TV/iOS MÓD + SÜTIK): ${videoUrl}`);
 
     const ytDlpArgs = [
         '--cookies', 'cookies.txt',
         '-o', '-',
-        // JAVÍTÁS: "android" helyett "mweb,default" (Mobile Web), mert ez TÁMOGATJA a sütiket!
-        '--extractor-args', 'youtube:player_client=mweb,default',
-        '--format', 'bestaudio/best',
+        // A LEGFONTOSABB JAVÍTÁS: iPhone és Okostévé álcázás (ezek nem kérnek PO tokent!)
+        '--extractor-args', 'youtube:player_client=ios,tv',
+        // Először a legstabilabb, csak hangot tartalmazó formátumokat kérjük (140, 18)
+        '--format', '140/18/bestaudio/best',
         '--no-playlist',
         videoUrl
     ];
@@ -78,7 +76,7 @@ function playNextSong() {
 
     ytDlp.stdout.pipe(ffmpeg.stdin);
 
-    // Lássunk mindent, amit a yt-dlp csinál (Debug mód)
+    // Lássunk mindent, amit a yt-dlp csinál
     ytDlp.stderr.on('data', (data) => {
         const msg = data.toString().trim();
         if (msg) console.log(`[YT Log]: ${msg}`);
@@ -87,12 +85,12 @@ function playNextSong() {
     ffmpeg.stderr.on('data', (data) => {
         const msg = data.toString();
         if (msg.includes('Connection refused')) {
-            console.error('\n>>> ❌ KRITIKUS HIBA: A rádiószerver elutasított! KAPCSOLD BE A LISTEN2MYRADIO PANELEN!\n');
+            console.error('\n>>> ❌ KRITIKUS HIBA: A rádiószerver elutasított!\n');
         }
     });
 
     ffmpeg.on('close', () => {
-        console.log('>>> 🛑 Dal vége vagy megszakadt a kapcsolat.');
+        console.log('>>> 🛑 Dal vége.');
         currentSongIndex = (currentSongIndex + 1) % PLAYLIST.length;
         console.log('>>> 🔄 Váltás a következő zenére 5 másodperc múlva...');
         setTimeout(playNextSong, 5000);
