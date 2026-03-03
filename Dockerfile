@@ -1,17 +1,13 @@
-# Node.js alapú képkészítés
-FROM node:22
+FROM node:20
 
-# Alapvető csomagok telepítése
-RUN apt-get update && apt-get install -y ffmpeg
+# Szükséges programok telepítése (FFmpeg, Python, yt-dlp)
+RUN apt-get update && apt-get install -y ffmpeg python3 python3-pip
+RUN pip3 install --break-system-packages yt-dlp
 
-# Munka könyvtár
-WORKDIR /usr/src/app
-
-# A fájlok másolása
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
 COPY . .
 
-# Függőségek telepítése
-RUN npm install
-
-# Az alkalmazás elindítása
-CMD ["npm", "start"]
+EXPOSE 10000
+CMD ["node", "index.js"]
