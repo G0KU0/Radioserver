@@ -1,17 +1,11 @@
 {
-  "name": "youtube-shoutcast-stream",
-  "version": "1.0.0",
-  "description": "Stream YouTube audio to Shoutcast",
+  "name": "youtube-shoutcast-bot",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "ytdl-core": "^4.9.1",
-    "shoutcast-client": "^1.0.0"
-  },
-  "engines": {
-    "node": "22.x"
+    "express": "^4.18.2"
   }
 }
