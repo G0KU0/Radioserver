@@ -57,13 +57,13 @@ let currentSongIndex = 0;
 
 function playNextSong() {
     const videoUrl = PLAYLIST[currentSongIndex];
-    console.log(`\n>>> 🎵 INDÍTÁS (ANDROID MÓD + JAVÍTOTT SÜTIK): ${videoUrl}`);
+    console.log(`\n>>> 🎵 INDÍTÁS (MOBIL BÖNGÉSZŐ MÓD + SÜTIK): ${videoUrl}`);
 
     const ytDlpArgs = [
         '--cookies', 'cookies.txt',
         '-o', '-',
-        // Android kliens álcázása
-        '--extractor-args', 'youtube:player_client=android',
+        // JAVÍTÁS: "android" helyett "mweb,default" (Mobile Web), mert ez TÁMOGATJA a sütiket!
+        '--extractor-args', 'youtube:player_client=mweb,default',
         '--format', 'bestaudio/best',
         '--no-playlist',
         videoUrl
