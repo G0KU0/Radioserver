@@ -10,7 +10,7 @@ const SOURCE_PASS = '2002';
 
 const PLAYLIST = [
     'https://www.youtube.com/watch?v=RzRhcnN-2XQ', // Sickick - Infected
-    'https://www.youtube.com/watch?v=U-HfHDbTmBQ'  // Rick Astley
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ'  // Rick Astley
 ];
 
 function jsonToNetscape(jsonStr) {
@@ -27,10 +27,9 @@ function jsonToNetscape(jsonStr) {
 
 if (process.env.YT_COOKIE) {
     fs.writeFileSync('cookies.txt', jsonToNetscape(process.env.YT_COOKIE));
-    console.log(">>> [RENDSZER] cookies.txt kész.");
 }
 
-app.get('/', (req, res) => res.send('AutoDJ Online 📻'));
+app.get('/', (req, res) => res.send('AutoDJ Status: Online 📻'));
 app.listen(PORT, () => {
     console.log(`Webszerver: ${PORT}`);
     playNextSong();
@@ -40,14 +39,14 @@ let currentSongIndex = 0;
 
 function playNextSong() {
     const videoUrl = PLAYLIST[currentSongIndex];
-    console.log(`\n>>> 🎵 INDÍTÁS (Deno + Web Embedded): ${videoUrl}`);
+    console.log(`\n>>> 🎵 INDÍTÁS: ${videoUrl}`);
 
     const ytDlpArgs = [
         '--cookies', 'cookies.txt',
         '-o', '-',
-        // Ez mondja meg a programnak, hogy a Deno-t használja a titkosítás feltöréséhez
         '--js-runtimes', 'deno',
-        // Beágyazott webes kliens (jobb a sütikhez)
+        // EZ A JAVÍTÁS: Engedélyezzük a külső titkosítás-megoldót
+        '--remote-components', 'ejs:github',
         '--extractor-args', 'youtube:player_client=web_embedded,tv',
         '--format', 'bestaudio/best',
         '--no-playlist',
@@ -69,7 +68,7 @@ function playNextSong() {
     });
 
     ffmpeg.on('close', () => {
-        console.log('>>> Dal vége, újraindítás...');
+        console.log('>>> Újraindítás...');
         currentSongIndex = (currentSongIndex + 1) % PLAYLIST.length;
         setTimeout(playNextSong, 5000);
     });
